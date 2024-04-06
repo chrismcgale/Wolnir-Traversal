@@ -6,34 +6,41 @@ struct CSRGraph {
 
 
 __host__ unsigned int* vertex_top_down_bfs(CSRGraph csrGraph, unsigned int startVertex) {
-    unsigned int* newVertex;
+    CSRGraph* csrGraph_d;
+    unsigned int* newVertex_h, *newVertex_d;
+    *newVertex_h = 1
 
-    *newVertex = 1
+    unsigned int level_h[csrGraph.numVertices], *level_d;
 
-    unsigned int level[csrGraph.numVertices];
-
-    memset(level, UINT_MAX, sizeof(level));
+    memset(level_h, UINT_MAX, sizeof(unsigned int) * csrGraph.numVertices);
 
     // Can have multiple starts!!
-    level[startVertex] = 0;
+    level_h[startVertex] = 0;
 
-    cudaMalloc((void**)csrGraph, sizeof(csrGraph));
-    cudaMalloc((void**)level, sizeof(level));
-    cudaMalloc((void**)&newVertex, sizeof(unsigned int));
+    cudaMalloc((void**)&csrGraph_d, sizeof(CSRGraph));
+    cudaMalloc((void**)&level_d, sizeof(level));
+    cudaMalloc((void**)&newVertex_d, sizeof(unsigned int));
 
-    unsigned int currLevel = 1;
-    unsigned int hostLevel = 1;
-    while (hostLevel == 1) {
-        hostLevel = 0;
-        cudaMemcpy(&hostLevel, newVertex, cudaMemcpyHostToDevice);
+    cudaMemcpy(csrGraph_d, csrGraph, sizeof(CSRGraph) s, cudaMemcpyHostToDevice);
+    cudaMemcpy(level_d, level_h, sizeof(unsigned int) * csrGraph.numVertices, cudaMemcpyHostToDevice);
+    cudaMemcpy(newVertex_d, newVertex_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
+
+
+    while (*newVertex_h == 1) {
+        *newVertex_h = 0;
+        cudaMemcpy(newVertex_d, newVertex_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
         vertex_top_down_bfs_kernel<<<(csrGraph.numVertices / 256), 256>>>(csrGraph, level, newVertex, currLevel);
-        cudaMemcpy(newVertex, &hostLevel, cudaMemcpyDeviceToHost);
+        cudaMemcpy(newVertex_h, newVertex_d, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         currLevel++;
     }
 
+    cudaMemcpy(level_h, level_d, sizeof(unsigned int) * csrGraph.numVertices, cudaMemcpyDeviceToHost);
+
     cudaFree(csrGraph);
-    cudaFree(level);
-    cudaFree(newVertex);
+    cudaFree(level_d);
+    cudaFree(newVertex_d);
+
+    return level_h;
 
 }
 

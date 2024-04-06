@@ -9,40 +9,45 @@ struct Graph {
 }
 
 // Switching level depends on the degree of the graph (low-degree = many levels = more levels needed to reach critical mass)
-__host__ direction_optimized_bfs(Graph graph, unsigned int startVertex, unsigned int switchingLevel) {
-    unsigned int* newVertex;
+__host__ unsigned int* edge_bfs(Graph graph, unsigned int startVertex) {
+    Graph* cooGraph_d;
+    unsigned int* newVertex_h, *newVertex_d;
+    *newVertex_h = 1
 
-    *newVertex = 1
+    unsigned int level_h[graph.numVertices], *level_d;
 
-    unsigned int level[graph.numVertices];
+    memset(level_h, UINT_MAX, sizeof(unsigned int) * graph.numVertices);
 
-    memset(level, UINT_MAX, sizeof(level));
-    
     // Can have multiple starts!!
-    level[startVertex] = 0;
+    level_h[startVertex] = 0;
 
-    cudaMalloc((void**)graph, sizeof(graph));
-    cudaMalloc((void**)level, sizeof(level));
-    cudaMalloc((void**)&newVertex, sizeof(unsigned int));
+    cudaMalloc((void**)&cooGraph_d, sizeof(Graph));
+    cudaMalloc((void**)&level_d, sizeof(level));
+    cudaMalloc((void**)&newVertex_d, sizeof(unsigned int));
 
-    unsigned int currLevel = 1;
-    unsigned int hostLevel = 1;
-    while (hostLevel == 1) {
-        hostLevel = 0;
-        cudaMemcpy(&hostLevel, newVertex, cudaMemcpyHostToDevice);
+    cudaMemcpy(cooGraph_d, graph, sizeof(Graph) s, cudaMemcpyHostToDevice);
+    cudaMemcpy(level_d, level_h, sizeof(unsigned int) * graph.numVertices, cudaMemcpyHostToDevice);
+    cudaMemcpy(newVertex_d, newVertex_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
 
+
+    while (*newVertex_h == 1) {
+        *newVertex_h = 0;
+        cudaMemcpy(newVertex_d, newVertex_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
         if (currLevel < switchingLevel) {
             vertex_top_down_bfs_kernel<<<(graph.numVertices / 256), 256>>>(graph, level, newVertex, currLevel);
         } else {
             vertex_bottom_up_bfs_kernel<<<(cscGraph.numVertices / 256), 256>>>(cscGraph, level, newVertex, currLevel);
         }
-
-        cudaMemcpy(newVertex, &hostLevel, cudaMemcpyDeviceToHost);
+        cudaMemcpy(newVertex_h, newVertex_d, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         currLevel++;
     }
 
+    cudaMemcpy(level_h, level_d, sizeof(unsigned int) * graph.numVertices, cudaMemcpyDeviceToHost);
+
     cudaFree(graph);
-    cudaFree(level);
-    cudaFree(newVertex);
+    cudaFree(level_d);
+    cudaFree(newVertex_d);
+
+    return level_h;
 
 }

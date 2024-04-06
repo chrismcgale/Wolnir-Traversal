@@ -6,36 +6,45 @@ struct CSCGraph {
 
 
 __host__ unsigned int* vertex_bottom_up_bfs(CSCGraph cscGraph, unsigned int startVertex) {
-    unsigned int* newVertex;
+    CSCGraph* csrGraph_d;
+    unsigned int* newVertex_h, *newVertex_d;
+    *newVertex_h = 1
 
-    *newVertex = 1
+    unsigned int level_h[cscGraph.numVertices], *level_d;
 
-    unsigned int level[cscGraph.numVertices];
-
-    memset(level, UINT_MAX, sizeof(level));
+    memset(level_h, UINT_MAX, sizeof(unsigned int) * cscGraph.numVertices);
 
     // Can have multiple starts!!
-    level[startVertex] = 0;
+    level_h[startVertex] = 0;
 
-    cudaMalloc((void**)cscGraph, sizeof(cscGraph));
-    cudaMalloc((void**)level, sizeof(level));
-    cudaMalloc((void**)&newVertex, sizeof(unsigned int));
+    cudaMalloc((void**)&csrGraph_d, sizeof(CSCGraph));
+    cudaMalloc((void**)&level_d, sizeof(level));
+    cudaMalloc((void**)&newVertex_d, sizeof(unsigned int));
 
-    unsigned int currLevel = 1;
-    unsigned int hostLevel = 1;
-    while (hostLevel == 1) {
-        hostLevel = 0;
-        cudaMemcpy(&hostLevel, newVertex, cudaMemcpyHostToDevice);
-        vertex_bottom_up_bfs_kernel<<<(cscGraph.numVertices / 256), 256>>>(cscGraph, level, newVertex, currLevel);
-        cudaMemcpy(newVertex, &hostLevel, cudaMemcpyDeviceToHost);
+    cudaMemcpy(csrGraph_d, cscGraph, sizeof(CSCGraph) s, cudaMemcpyHostToDevice);
+    cudaMemcpy(level_d, level_h, sizeof(unsigned int) * cscGraph.numVertices, cudaMemcpyHostToDevice);
+    cudaMemcpy(newVertex_d, newVertex_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
+
+
+    while (*newVertex_h == 1) {
+        *newVertex_h = 0;
+        cudaMemcpy(newVertex_d, newVertex_h, sizeof(unsigned int), cudaMemcpyHostToDevice);
+        vertex_top_down_bfs_kernel<<<(cscGraph.numVertices / 256), 256>>>(cscGraph, level, newVertex, currLevel);
+        cudaMemcpy(newVertex_h, newVertex_d, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         currLevel++;
     }
 
+    cudaMemcpy(level_h, level_d, sizeof(unsigned int) * cscGraph.numVertices, cudaMemcpyDeviceToHost);
+
     cudaFree(cscGraph);
-    cudaFree(level);
-    cudaFree(newVertex);
+    cudaFree(level_d);
+    cudaFree(newVertex_d);
+
+    return level_h;
 
 }
+
+
 
 
 
