@@ -71,9 +71,56 @@ __global__ void frontier_bfs_kernel(CSRGraph csrGraph, unsigned int* level,
         for (unsigned int edge = csrGraph.srcPtrs[vertex]; edge < csrGraph.srcPtrs[vertex + 1]; edge++) {
             unsigned int neighbour = csrGraph.dst[edge];
             if (atomicCAS(&level[neighbour], UINT_MAX, currLevel) == UINT_MAX) { // Not yet visited
-                unsigned int currFrontierIdx = atomicAdd(numCurrFrontier, 1);
+                unsigned int currFrontierIdx = atomicAdd(&numCurrFrontier, 1);
                 currFrontier[currFrontierIdx] = neighbour;
             }
         }
+    }
+}
+
+
+__global__ void private_frontier_bfs_kernel(CSRGraph csrGraph, unsigned int* level, 
+                unsigned int* prevFrontier, unsigned int numPrevFrontier, 
+                unsigned int* currFrontier. unsigned int* numCurrFrontier, unsigned int currLevel) {
+    // Init private frontier
+    __shared__ unsigned int currFrontier_s[LOCAL_FRONTIER_CAP];
+    __shared__ unsigned int numCurrFrontier_s;
+    if (threadIdx.x == 0) {
+        numCurrFrontier_s = 0;
+    }
+    __syncthreads();
+
+    // Perform BFS
+    unsigned int i = blockIdx.x*blockDim.x + thread.Idx.x;
+    if (i < numPrevFrontier) {
+        unsigned int vertex = prevFrontier[i];
+        for (unsigned int edge = csrGraph.srcPtrs[vertex]; edge < csrGraph.srcPtrs[vertex + 1]; edge++) {
+            unsigned int neighbour = csrGraph.dst[edge];
+            if (atomicCAS(&level[neighbour], UINT_MAX, currLevel) == UINT_MAX) { // Not yet visited
+                unsigned int currFrontierIdx_s = atomicAdd(&numCurrFrontier_s, 1);
+                if (currFrontierIdx_s < LOCAL_FRONTIER_CAP) {
+                    currFrontier_s[currFrontierIdx_s] = neighbour;
+                } else {
+                    numCurrFrontier_s = LOCAL_FRONTIER_CAP;
+                    unsigned int currFrontierIdx = atomicAdd(&numCurrFrontier, 1);
+                    currFrontier[currFrontierIdx] = neighbour;
+                }
+                
+            }
+        }
+    }
+    __syncthreads();
+
+    // Allocate to global frontier
+    __shared__ unsigned int currFrontierStartIdx;
+    if (threadIdx.x == 0) {
+        currFrontierStartIdx = atomicAdd(numCurrFrontier, numCurrFrontier_s);
+    }
+    __syncthreads();
+
+    // Commit to global frontier
+    for (unsigned int currFrontierIdx_s = threadIdx.x; currFrontierIdx_s < numCurrFrontier_s; currFrontierIdx_s += blockDim.x) {
+        unsigned int currFrontierIdx = currFrontierStartIdx + currFrontierIdx_s;
+        currFrontier[currFrontierIdx] = currFrontier_s[currFrontierIdx_s];
     }
 }
