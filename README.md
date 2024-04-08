@@ -3,7 +3,7 @@
 In progress: parallel search algorithms with Cuda
 
 Possible use cases I'm considering:
-Social Networks
-Web Graph
-Network routing
+Social Networks,
+Web Graph,
+Network routing,
 Protein interactions???
