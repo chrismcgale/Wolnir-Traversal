@@ -2,7 +2,7 @@
 
 In progress: parallel search algorithms with Cuda
 
-Possible use cases I'm considering:
+Possible use cases:
 Social Networks,
 Web Graph,
 Network routing,
